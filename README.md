@@ -6,3 +6,7 @@ Implemented the concept that which of the APIs are public and which of the APIs 
 
 # springsecsection_3
 Contains the concept of logging of multiple users at the same time by storing the user credentials in memory of the application using InMemoryUserDetailsManager.
+
+# springsecsection_4
+docker run --name springsecurity -e MYSQL_ROOT_PASSWORD=Puskal -e MYSQL_DATABASE=eazybank -p 3306:3306 -d mysql:latest
+
