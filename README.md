@@ -17,3 +17,9 @@ docker run --name springsecurity -e MYSQL_ROOT_PASSWORD=##### -e MYSQL_DATABASE=
 3. Building the required classes for the JPA framework to interact with the new table created so far.
 4. Created Customer.class (customer implementation), CustomerRepository Interface (To invoke CRUD related methods and to fire the Query on Customer).
 5. Creating our own Customers implementation of UserDetailsService.
+
+# springsecsection_5
+Understanding Authentication Provider.
+     1. Understanding the AuthenticationProvider methods.
+     2. Implementation and Customizing the AuthenticationProvider inside our application.
+     3. Environment secific security configuration using Profile.
