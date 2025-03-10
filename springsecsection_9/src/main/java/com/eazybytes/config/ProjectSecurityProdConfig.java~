@@ -1,0 +1,128 @@
+// This package contains configuration classes for the application
+package com.eazybytes.config;
+
+// Import necessary Spring Security and configuration annotations
+import com.eazybytes.exceptionhandling.CustomAccessDeniedHandler;
+import com.eazybytes.exceptionhandling.CustomBasicAuthenticationEntryPoint;
+import com.eazybytes.filter.CsrfCookieFilter;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+
+// Import a static method for customizing security configurations with default settings
+import java.util.Collections;
+
+import static org.springframework.security.config.Customizer.withDefaults;
+
+// This configuration class is specific to the production environment
+@Configuration
+@Profile("prod")
+public class ProjectSecurityProdConfig {
+
+    // Define a bean for the security filter chain
+    @Bean
+    SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+        CsrfTokenRequestAttributeHandler csrfTokenRequestAttributeHandler = new CsrfTokenRequestAttributeHandler();
+
+
+        // Purpose: Configures CORS settings to allow frontend communication with the backend.
+        http.securityContext(contextConfig -> contextConfig.requireExplicitSave(false))
+                .sessionManagement(sessionConfig-> sessionConfig.sessionCreationPolicy(SessionCreationPolicy.ALWAYS))
+                .cors(corsConfig -> corsConfig.configurationSource(new CorsConfigurationSource() {
+
+            /**
+             * Defines CORS configuration for handling cross-origin requests.
+             *
+             * @param request The incoming HTTP request.
+             * @return CorsConfiguration with defined rules.
+             */
+            @Override
+            public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
+                CorsConfiguration config = new CorsConfiguration();
+
+                // Allows requests only from the Angular frontend running on localhost:4200
+                config.setAllowedOrigins(Collections.singletonList("http://localhost:4200"));
+
+                // Permits all HTTP methods (GET, POST, PUT, DELETE, etc.)
+                config.setAllowedMethods(Collections.singletonList("*"));
+
+                // Enables sending credentials such as cookies, authorization headers, etc.
+                config.setAllowCredentials(true);
+
+                // Permits all headers in requests
+                config.setAllowedHeaders(Collections.singletonList("*"));
+
+                // Sets the maximum age for pre-flight requests to 1 hour (3600 seconds)
+                // This reduces the number of CORS pre-flight requests by caching the response.
+                config.setMaxAge(3600L);
+
+                return config;
+            }
+        }))
+                .csrf(csrfConfig ->
+                        csrfConfig.csrfTokenRequestHandler(csrfTokenRequestAttributeHandler)
+                                .ignoringRequestMatchers("/register", "/contact")
+                                // Use a cookie-based CSRF token repository with the HttpOnly flag set to false
+                                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                )
+                .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);
+
+
+
+        // Require secure channels (HTTPS) for all requests
+        http.requiresChannel(rcc -> rcc.anyRequest().requiresSecure())
+
+
+
+                // Restrict access to certain paths to authenticated users only
+                .authorizeHttpRequests((requests) -> requests.requestMatchers("/myAccount", "/myLoans", "/myCards", "/myBalance", "/user").authenticated());
+
+        // Allow public access to other paths
+        http.authorizeHttpRequests((requests) -> requests.requestMatchers("/notices", "/contact", "/error", "/register", "/invalidSession").permitAll());
+
+        // Enable form login with default settings
+        http.formLogin(withDefaults());
+
+        // Configure HTTP Basic authentication
+        http.httpBasic(
+                hbc ->
+                        // Set a custom authentication entry point for HTTP Basic authentication
+                        hbc.authenticationEntryPoint(
+                                // Create a new instance of the custom authentication entry point
+                                new CustomBasicAuthenticationEntryPoint()
+                        )
+        );
+
+// Configure exception handling for HTTP security
+        http.exceptionHandling(
+                ehc ->
+                        // Set a custom access denied handler for handling access denied exceptions
+                        ehc.accessDeniedHandler(
+                                // Create a new instance of the custom access denied handler
+                                new CustomAccessDeniedHandler()
+                        )
+
+        );
+
+        // Build and return the security filter chain
+        return http.build();
+    }
+
+    // Define a bean for the password encoder
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        // Create a delegating password encoder for password hashing and verification
+        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
+}
